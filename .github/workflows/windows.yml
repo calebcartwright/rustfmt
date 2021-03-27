@@ -60,8 +60,13 @@ jobs:
         ls c:/msys64/mingw64/bin
       shell: bash
 
-    # - name: cargo-make
-    #   run: cargo install --force cargo-make
+    - name: Add mingw64 to path for x86_64-gnu
+      run: echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
+      if: matrix.target == 'x86_64-pc-windows-gnu' && matrix.channel == 'nightly'
+      shell: bash
+
+    - name: cargo-make
+      run: cargo install --force cargo-make
 
     # - name: build
     #   run: |
