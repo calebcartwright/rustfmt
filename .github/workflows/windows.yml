@@ -58,6 +58,8 @@ jobs:
         ls c:/msys64/mingw64
         echo "**********************"
         ls c:/msys64/mingw64/bin
+        echo "&&&&&&&&&&&&&&&&&&&&&"
+        ls c:/_/M
       shell: bash
 
     - name: Add mingw64 to path for x86_64-gnu
