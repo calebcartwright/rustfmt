@@ -54,8 +54,10 @@ jobs:
     - name: build
       run: |
         echo $PATH
-        pwd
-        ls c:/msys64
+        echo "**********************"
+        ls c:/msys64/mingw64
+        echo "**********************"
+        ls c:/msys64/mingw64/bin
       shell: bash
 
     # - name: cargo-make
