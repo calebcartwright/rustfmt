@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - ci-part-two
   pull_request:
 
 jobs:
@@ -18,15 +19,15 @@ jobs:
       fail-fast: false
       matrix:
         target: [
-          i686-pc-windows-gnu,
-          i686-pc-windows-msvc,
+          # i686-pc-windows-gnu,
+          # i686-pc-windows-msvc,
           x86_64-pc-windows-gnu,
-          x86_64-pc-windows-msvc,
+          # x86_64-pc-windows-msvc,
         ]
         channel: [ nightly ]
-        include:
-          - channel: nightly
-            target: i686-pc-windows-gnu
+        # include:
+        #   - channel: nightly
+        #     target: i686-pc-windows-gnu
 
     env:
       CFG_RELEASE_CHANNEL: nightly
@@ -50,16 +51,23 @@ jobs:
         profile: minimal
         default: true
 
-    - name: cargo-make
-      run: cargo install --force cargo-make
-
     - name: build
       run: |
-        rustc -Vv
-        cargo -V
-        cargo make build
-      shell: cmd
+        echo $PATH
+        pwd
+        ls c:/msys64
+      shell: bash
 
-    - name: test
-      run: cargo make test
-      shell: cmd
+    # - name: cargo-make
+    #   run: cargo install --force cargo-make
+
+    # - name: build
+    #   run: |
+    #     rustc -Vv
+    #     cargo -V
+    #     cargo make build
+    #   shell: cmd
+
+    # - name: test
+    #   run: cargo make test
+    #   shell: cmd
