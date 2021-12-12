@@ -307,6 +307,8 @@ By default this option is set as a percentage of [`max_width`](#max_width) provi
 
 See also [`max_width`](#max_width) and [`use_small_heuristics`](#use_small_heuristics)
 
+## `chain_style`
+
 ## `color`
 
 Whether to use colored output or not.

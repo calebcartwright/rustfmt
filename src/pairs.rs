@@ -5,7 +5,7 @@ use crate::config::IndentStyle;
 use crate::rewrite::{Rewrite, RewriteContext};
 use crate::shape::Shape;
 use crate::utils::{
-    first_line_width, is_single_line, last_line_width, trimmed_last_line_width, wrap_str,
+    first_line_width, is_single_line, last_line_width, trimmed_last_line_width, wrap_string,
 };
 
 /// Sigils that decorate a binop pair.
@@ -86,7 +86,7 @@ fn rewrite_pairs_one_line<T: Rewrite>(
         return None;
     }
 
-    wrap_str(result, context.config.max_width(), shape)
+    wrap_string(result, context.config.max_width(), shape)
 }
 
 fn rewrite_pairs_multiline<T: Rewrite>(

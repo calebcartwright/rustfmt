@@ -13,7 +13,7 @@ use crate::comment::{
     rewrite_missing_comment, CharClasses, FindUncommented,
 };
 use crate::config::lists::*;
-use crate::config::{Config, ControlBraceStyle, HexLiteralCase, IndentStyle, Version};
+use crate::config::{ChainStyle, Config, ControlBraceStyle, HexLiteralCase, IndentStyle, Version};
 use crate::lists::{
     definitive_tactic, itemize_list, shape_for_tactic, struct_lit_formatting, struct_lit_shape,
     struct_lit_tactic, write_list, ListFormatting, Separator,
@@ -31,7 +31,7 @@ use crate::types::{rewrite_path, PathContext};
 use crate::utils::{
     colon_spaces, contains_skip, count_newlines, first_line_ends_with, inner_attributes,
     last_line_extendable, last_line_width, mk_sp, outer_attributes, semicolon_for_expr,
-    unicode_str_width, wrap_str,
+    unicode_str_width, wrap_str, wrap_string,
 };
 use crate::vertical::rewrite_with_alignment;
 use crate::visitor::FmtVisitor;
@@ -202,7 +202,7 @@ pub(crate) fn format_expr(
         | ast::ExprKind::Await(_) => rewrite_chain(expr, context, shape),
         ast::ExprKind::MacCall(ref mac) => {
             rewrite_macro(mac, None, context, shape, MacroPosition::Expression).or_else(|| {
-                wrap_str(
+                wrap_string(
                     context.snippet(expr.span).to_owned(),
                     context.config.max_width(),
                     shape,
@@ -1170,7 +1170,7 @@ pub(crate) fn rewrite_literal(
     match l.kind {
         ast::LitKind::Str(_, ast::StrStyle::Cooked) => rewrite_string_lit(context, l.span, shape),
         ast::LitKind::Int(..) => rewrite_int_lit(context, l, shape),
-        _ => wrap_str(
+        _ => wrap_string(
             context.snippet(l.span).to_owned(),
             context.config.max_width(),
             shape,
@@ -1190,7 +1190,7 @@ fn rewrite_string_lit(context: &RewriteContext<'_>, span: Span, shape: Shape) ->
         {
             return Some(string_lit.to_owned());
         } else {
-            return wrap_str(string_lit.to_owned(), context.config.max_width(), shape);
+            return wrap_string(string_lit.to_owned(), context.config.max_width(), shape);
         }
     }
 
@@ -1215,7 +1215,7 @@ fn rewrite_int_lit(context: &RewriteContext<'_>, lit: &ast::Lit, shape: Shape) -
             HexLiteralCase::Lower => Some(symbol_stripped.to_ascii_lowercase()),
         };
         if let Some(hex_lit) = hex_lit {
-            return wrap_str(
+            return wrap_string(
                 format!(
                     "0x{}{}",
                     hex_lit,
@@ -1227,7 +1227,7 @@ fn rewrite_int_lit(context: &RewriteContext<'_>, lit: &ast::Lit, shape: Shape) -
         }
     }
 
-    wrap_str(
+    wrap_string(
         context.snippet(span).to_owned(),
         context.config.max_width(),
         shape,
@@ -1998,12 +1998,29 @@ fn choose_rhs<R: Rewrite>(
     expr: &R,
     shape: Shape,
     orig_rhs: Option<String>,
-    _rhs_kind: &RhsAssignKind<'_>,
+    rhs_kind: &RhsAssignKind<'_>,
     rhs_tactics: RhsTactics,
     has_rhs_comment: bool,
 ) -> Option<String> {
-    match orig_rhs {
+    fn wrap_rhs<'a>(
+        s: Option<&'a str>,
+        config: &Config,
+        overflowable_chain: bool,
+        shape: Shape,
+    ) -> Option<&'a str> {
+        match s {
+            Some(s) if overflowable_chain => wrap_str(s, config.max_width(), shape),
+            _ => s,
+        }
+    }
+    let overflowable_chain =
+        rhs_kind.is_chain() && !matches!(context.config.chain_style(), ChainStyle::Standard);
+    let config = context.config;
+    let wrapped_same_line_rhs = wrap_rhs(orig_rhs.as_deref(), config, overflowable_chain, shape);
+
+    match wrapped_same_line_rhs {
         Some(ref new_str) if new_str.is_empty() => {
+            println!("um think we can fit?");
             return Some(String::new());
         }
         Some(ref new_str)
@@ -2018,19 +2035,18 @@ fn choose_rhs<R: Rewrite>(
             let new_rhs = expr.rewrite(context, new_shape);
             let new_indent_str = &shape
                 .indent
-                .block_indent(context.config)
-                .to_string_with_newline(context.config);
+                .block_indent(config)
+                .to_string_with_newline(config);
             let before_space_str = if has_rhs_comment { "" } else { " " };
-
-            match (orig_rhs, new_rhs) {
-                (Some(ref orig_rhs), Some(ref new_rhs))
-                    if wrap_str(new_rhs.clone(), context.config.max_width(), new_shape)
-                        .is_none() =>
+            let wrapped_new_rhs = wrap_rhs(new_rhs.as_deref(), config, overflowable_chain, shape);
+            match (wrapped_same_line_rhs, wrapped_new_rhs) {
+                (Some(ref wrapped_same_line_rhs), Some(ref new_rhs))
+                    if wrap_str(new_rhs, config.max_width(), new_shape).is_none() =>
                 {
-                    Some(format!("{}{}", before_space_str, orig_rhs))
+                    Some(format!("{}{}", before_space_str, wrapped_same_line_rhs))
                 }
-                (Some(ref orig_rhs), Some(ref new_rhs))
-                    if prefer_next_line(orig_rhs, new_rhs, rhs_tactics) =>
+                (Some(ref wrapped_same_line_rhs), Some(ref new_rhs))
+                    if prefer_next_line(wrapped_same_line_rhs, new_rhs, rhs_tactics) =>
                 {
                     Some(format!("{}{}", new_indent_str, new_rhs))
                 }
@@ -2040,8 +2056,62 @@ fn choose_rhs<R: Rewrite>(
                     expr.rewrite(context, shape)
                         .map(|s| format!("{}{}", before_space_str, s))
                 }
-                (None, None) => None,
-                (Some(orig_rhs), _) => Some(format!("{}{}", before_space_str, orig_rhs)),
+                (None, None) if overflowable_chain => {
+                    // println!("should be overflowing...");
+                    // println!("orig_rhs: {:?}", orig_rhs);
+                    // println!("new_rhs: {:?}", new_rhs);
+                    match (orig_rhs, new_rhs) {
+                        (Some(orig_rhs), Some(new_rhs)) => {
+                            let max_width = config.max_width();
+                            let count_overflowing = |snip: &str, offset: usize| -> Option<usize> {
+                                let str_width = unicode_str_width(snip) + offset;
+                                if str_width > max_width {
+                                    str_width.checked_sub(max_width)
+                                } else {
+                                    None
+                                }
+                            };
+                            let num_overflowing =
+                                |snippet: &str, first_line_offset: usize| -> usize {
+                                    let mut lines = snippet.lines();
+                                    let first_line_overage: usize =
+                                        lines.next().map_or(0, |first_line| -> usize {
+                                            count_overflowing(first_line, first_line_offset)
+                                                .unwrap_or(0)
+                                        });
+                                    first_line_overage
+                                        + lines
+                                            .filter_map(|line| count_overflowing(line, 0))
+                                            .sum::<usize>()
+                                };
+                            // We do a very rudimentary analysis to try to determine the less
+                            // egregious placement of the RHS based on which has the least
+                            // amount placed beyond the max_width boundary
+                            let num_overflowing_same_line =
+                                num_overflowing(&orig_rhs, shape.used_width());
+                            let num_overflowing_next_line =
+                                num_overflowing(&new_rhs, new_shape.used_width());
+                            // println!("same: {}", num_overflowing_same_line);
+                            // println!("next: {}", num_overflowing_next_line);
+                            if num_overflowing_same_line > num_overflowing_next_line {
+                                Some(format!("{}{}", new_indent_str, new_rhs))
+                            } else {
+                                Some(format!("{}{}", before_space_str, orig_rhs))
+                            }
+                        }
+                        (Some(orig_rhs), None) => Some(format!("{}{}", before_space_str, orig_rhs)),
+                        (None, Some(new_rhs)) => Some(format!("{}{}", new_indent_str, new_rhs)),
+                        (None, None) => None,
+                    }
+                }
+                (None, None) => {
+                    // println!("ummmm");
+                    None
+                }
+                (Some(wrapped_same_line_rhs), _) => {
+                    // println!("line 2103");
+                    Some(format!("{}{}", before_space_str, wrapped_same_line_rhs))
+                }
             }
         }
     }

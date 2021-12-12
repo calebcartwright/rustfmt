@@ -139,6 +139,7 @@ create_config! {
         "Write an item and its attribute on the same line \
         if their combined width is below a threshold";
     format_generated_files: bool, false, false, "Format generated files";
+    chain_style: ChainStyle, ChainStyle::Standard, false, "Formatting style for Chains";
 
     // Options that can change the source code beyond whitespace/blocks (somewhat linty things)
     merge_derives: bool, true, true, "Merge multiple `#[derive(...)]` into a single one";
@@ -607,6 +608,7 @@ edition = "2015"
 version = "One"
 inline_attribute_width = 0
 format_generated_files = false
+chain_style = "Standard"
 merge_derives = true
 use_try_shorthand = false
 use_field_init_shorthand = false

@@ -58,6 +58,19 @@ pub enum IndentStyle {
 }
 
 #[config_type]
+/// Chains
+pub enum ChainStyle {
+    /// Put the opening brace on the next line.
+    Standard,
+    /// Put the opening brace on the same line, if possible.
+    StandardWithOverflow,
+    /// Prefer the same line except where there is a where-clause, in which
+    Preserve,
+    /// case force the brace to be put on the next line.
+    PreserveElementAssociation,
+}
+
+#[config_type]
 /// How to place a list-like items.
 /// FIXME: Issue-3581: this should be renamed to ItemsLayout when publishing 2.0
 pub enum Density {

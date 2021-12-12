@@ -6,7 +6,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::config::Config;
 use crate::shape::Shape;
-use crate::utils::{unicode_str_width, wrap_str};
+use crate::utils::{unicode_str_width, wrap_string};
 
 const MIN_STRING: usize = 10;
 
@@ -150,7 +150,7 @@ pub(crate) fn rewrite_string<'a>(
     }
 
     result.push_str(fmt.closer);
-    wrap_str(result, fmt.config.max_width(), fmt.shape)
+    wrap_string(result, fmt.config.max_width(), fmt.shape)
 }
 
 /// Returns the index to the end of the URL if the split at index of the given string includes a

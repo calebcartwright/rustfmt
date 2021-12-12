@@ -197,6 +197,14 @@ impl ParseSess {
         self.parse_sess.source_map().lookup_char_pos(pos).line
     }
 
+    pub(crate) fn span_begins_on_same_line_as_prev_span(
+        &self,
+        span: Span,
+        prev_span: Span,
+    ) -> bool {
+        self.line_of_byte_pos(prev_span.hi()) == self.line_of_byte_pos(span.lo())
+    }
+
     pub(crate) fn span_to_debug_info(&self, span: Span) -> String {
         self.parse_sess.source_map().span_to_diagnostic_string(span)
     }
